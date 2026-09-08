@@ -1,4 +1,55 @@
 Write your reflection here.
 
-See reflection.md for what makes a good reflection — be specific, use the
-terminology from class, and make it actionable.
+The clearest thing I learned is what it means for bill.py to be a module. It holds
+the logic, and the three interfaces -- console.py, the notebook, and the Streamlit
+app -- import it and do no math of their own. Each function is defined in exactly one
+place, so when I finally implemented grand_total, the console and the notebook both
+started working at the same time. If I had written the tip formula separately in each
+interface, I would have had three places to fix and three chances to let them drift
+apart.
+
+Most of my time went into a single error: "TypeError: unsupported format string passed
+to NoneType.__format__". The traceback pointed at line 20 of console.py, the print
+line, but the bug was not there. grand_total in bill.py was still a stub with pass, so
+it returned None, and None cannot be formatted with :.2f. The lesson was to read the
+traceback as a symptom and work backward to the cause, instead of editing the line the
+arrow points at. I also learned to treat what did NOT fail as evidence: the
+split_evenly call on the line above ran without complaint, which only made sense if it
+was an unimplemented stub too. That one observation told me both functions were empty
+before I opened the file.
+
+Two specific mistakes I will not repeat. First, I wrote my validation as
+"return round(total / people, 2) if people > 0 else ValueError(...)". A conditional
+expression can only hold expressions, so that builds a ValueError object and returns
+it rather than raising it -- bad input would have travelled silently downstream instead
+of stopping. The fix was a guard clause: check the bad case, raise, then do the work.
+Second, I put the docstring after the return statement, where it is not a docstring at
+all, just an unreachable string. Because a docstring has to be the first statement in
+the function body, doctest never discovered my ">>> split_evenly(60, 4)" example, so a
+unit test I thought I had written was silently never running.
+
+On testing, I can now tell the two levels apart in my own project. Running
+"python -m doctest code/bill.py -v" is a unit test: it calls each function directly
+with known inputs and checks one return value. Running "python code/console.py" is an
+integration test: it exercises a whole interface end to end, so it catches the wiring
+between the interface and the module, which is exactly where my NoneType bug showed up.
+The unit test tells me which function is wrong; the integration test tells me the
+program is wrong. I want both.
+
+I struggled most with the toolchain rather than with Python. "command
+'python.execInTerminal-icon' not found" and "Cannot open resource with notebook editor
+type 'jupyter-notebook'" both looked like code failures, but they were the dev
+container missing the Python and Jupyter extensions -- extensions installed on my Mac
+do nothing inside the container, and a rebuild wipes any I add by hand unless they are
+listed in devcontainer.json. Learning to ask "is this my code or my editor?" before
+touching bill.py would have saved me an hour.
+
+Two concrete things I want to practice next. My debugging so far has been print
+statements and reading tracebacks after the crash. Next time I want to set a breakpoint
+on the failing line and step through it with the VARIABLES panel open, so I can see
+that total is None before Python has to tell me -- making the debugger my first move
+instead of my last. I also want more practice with rounding money. round(x, 2) is not
+the neutral operation I assumed: it uses banker's rounding, so round(0.125, 2) gives
+0.12 rather than 0.13, and splitting 100 three ways gives 33.33 per person, which adds
+back to only 99.99. I want to understand when a cent of drift is acceptable and when I
+should reach for Decimal or work in whole cents instead.
